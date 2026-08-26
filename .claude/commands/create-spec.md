@@ -31,7 +31,8 @@ If you cannot infer these frojm $ARGUMENTS, ask the user to clarify before proce
 ## Step 3 - Check branch name is not taken
 Run 'git branch' to list existing branches. If 'branch_name' is already taken, append a member: 'feature/registration-01', 'feature/registration-02' etc/
 
-## Step 4 - Switch to master and pull latest
+## Step 4 - Switch to master
+ and pull latest
 Run:
 '''
 git checkout master
