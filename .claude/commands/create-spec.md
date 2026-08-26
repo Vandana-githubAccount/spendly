@@ -8,7 +8,10 @@ you are a senior developer planning a new feature for the Spendly expense tracke
 
 User input: $ARGUMENTS
 
-## Step 1 - Parse the arguments
+## Step 1 - Check working directory is clean
+Run 'git status' and check for uncommitted, unstagged, or untracked files. If any exist, stop immediately and tell the user to commit or stash changes before proceeding. DO NOT CONTINUE until the working directory is clean.
+
+## Step 2 - Parse the arguments
 From $ARGUMENTS extract:
 
 1. 'step_number' - zero-padded to 2 digits: 2->02, 11-> 11
@@ -21,9 +24,26 @@ From $ARGUMENTS extract:
     - Maximum 40 characters
     - Example: registeration, login-logout
 
+4. 'branch_name' - format: 'feature/<feature_slug> - Example: 'feature/registration'
+
 If you cannot infer these frojm $ARGUMENTS, ask the user to clarify before proceeding.
 
-## Step 2 - Research the codebase
+## Step 3 - Check branch name is not taken
+Run 'git branch' to list existing branches. If 'branch_name' is already taken, append a member: 'feature/registration-01', 'feature/registration-02' etc/
+
+## Step 4 - Switch to master and pull latest
+Run:
+'''
+git checkout master
+git pull origin master
+'''
+## Step 5 - Create and swtich to the feature branch
+Run:
+'''
+git checkout -b <branch_name>
+'''
+
+## Step 6 - Research the codebase
 Read these files before writing the spec:
 - CLAUDE.md - roadmap, conventions, schema
 - app.py - existing routes and structure 
@@ -31,7 +51,7 @@ Read these files before writing the spec:
 - All files in .claude/specs/ - avoid duplicating existing specs
 
 
-## Step 3 - Write the spec
+## Step 7 - Write the spec
 Generate a spec document with this exact structure:
 
 # Spec: <feature_title>
@@ -75,11 +95,11 @@ Specific constraints Claude must follow. Always include:
 ## Definition of done
 A specific testable checklist. Each item must be something that can be verified by running the app.
 
-## Step 4 - Save the spec
+## Step 5 - Save the spec
 Save to : .claude/specs/
 <step_number>-<feature_slug>.md
 
-## Step 5 - Report to the user
+## Step 6 - Report to the user
 Print a short summary in this exact format:
 Spec file: .claude/specs/
 <step_number>-<feature_slug>.md
