@@ -58,7 +58,7 @@ def seed_db():
     sample_expenses = [
         (user_id, 12.50, "Food", (today - timedelta(days=1)).isoformat(), "Lunch"),
         (user_id, 45.00, "Transport", (today - timedelta(days=2)).isoformat(), "Fuel"),
-        (user_id, 100.00, "Bills", (today - timedelta(days=3)).isoformat(), "Electricity bill"),
+        (user_id, 154.99, "Bills", (today - timedelta(days=3)).isoformat(), "Electricity bill"),
         (user_id, 30.00, "Health", (today - timedelta(days=4)).isoformat(), "Pharmacy"),
         (user_id, 20.00, "Entertainment", (today - timedelta(days=5)).isoformat(), "Movie tickets"),
         (user_id, 60.00, "Shopping", (today - timedelta(days=6)).isoformat(), "Clothes"),
