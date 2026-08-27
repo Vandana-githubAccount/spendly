@@ -1,6 +1,6 @@
 import functools
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -34,6 +34,36 @@ def login_required(view_func):
             return redirect(url_for("login"))
         return view_func(*args, **kwargs)
     return wrapper
+
+
+VALID_RANGES = {"all", "7d", "30d", "month", "custom"}
+DATE_FORMAT = "%Y-%m-%d"
+
+
+def resolve_date_range(range_value, start_value, end_value):
+    """Resolve profile filter params into (start_date, end_date, error).
+    start_date/end_date are 'YYYY-MM-DD' strings, or (None, None) for all-time.
+    error is a friendly string or None. Never raises."""
+    today = date.today()
+
+    if range_value == "7d":
+        return (today - timedelta(days=6)).isoformat(), today.isoformat(), None
+    if range_value == "30d":
+        return (today - timedelta(days=29)).isoformat(), today.isoformat(), None
+    if range_value == "month":
+        return today.replace(day=1).isoformat(), today.isoformat(), None
+    if range_value == "custom":
+        if not start_value or not end_value:
+            return None, None, "Please choose both a start and end date for a custom range. Showing all-time results instead."
+        try:
+            start_date = datetime.strptime(start_value, DATE_FORMAT).date()
+            end_date = datetime.strptime(end_value, DATE_FORMAT).date()
+        except ValueError:
+            return None, None, "That doesn't look like a valid date. Showing all-time results instead."
+        if start_date > end_date:
+            return None, None, "Start date must be on or before the end date. Showing all-time results instead."
+        return start_date.isoformat(), end_date.isoformat(), None
+    return None, None, None
 
 
 # ------------------------------------------------------------------ #
@@ -121,15 +151,27 @@ def profile():
         "initials": initials,
         "member_since": created_at.strftime("%B %Y"),
     }
-    stats = get_summary_stats(session["user_id"])
-    transactions = get_recent_transactions(session["user_id"])
-    categories = get_category_breakdown(session["user_id"])
+    selected_range = request.args.get("range", "all")
+    if selected_range not in VALID_RANGES:
+        selected_range = "all"
+    start_input = request.args.get("start", "")
+    end_input = request.args.get("end", "")
+
+    start_date, end_date, range_error = resolve_date_range(selected_range, start_input, end_input)
+
+    stats = get_summary_stats(session["user_id"], start_date, end_date)
+    transactions = get_recent_transactions(session["user_id"], start_date, end_date)
+    categories = get_category_breakdown(session["user_id"], start_date, end_date)
     return render_template(
         "profile.html",
         user=user,
         stats=stats,
         transactions=transactions,
         categories=categories,
+        selected_range=selected_range,
+        start_input=start_input,
+        end_input=end_input,
+        range_error=range_error,
     )
 
 

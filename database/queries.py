@@ -3,41 +3,43 @@ import math
 from database.db import get_db
 
 
-def get_recent_transactions(user_id, limit=10):
+def get_recent_transactions(user_id, start_date=None, end_date=None, limit=10):
     """Return the user's most recent expenses, newest-first, as a list of
     sqlite3.Row (each with date, description, category, amount)."""
     conn = get_db()
-    transactions = conn.execute(
-        """
+    query = """
         SELECT date, description, category, amount
         FROM expenses
         WHERE user_id = ?
-        ORDER BY date DESC, id DESC
-        LIMIT ?
-        """,
-        (user_id, limit),
-    ).fetchall()
+    """
+    params = [user_id]
+    if start_date and end_date:
+        query += " AND date BETWEEN ? AND ?"
+        params += [start_date, end_date]
+    query += " ORDER BY date DESC, id DESC LIMIT ?"
+    params.append(limit)
+    transactions = conn.execute(query, params).fetchall()
     conn.close()
     return transactions
 
 
-def get_summary_stats(user_id):
+def get_summary_stats(user_id, start_date=None, end_date=None):
     """Return {"total_spent": float, "transaction_count": int, "top_category": str}
     for the user. If the user has no expenses: total_spent=0.0, transaction_count=0,
     top_category="—" (em dash)."""
     conn = get_db()
 
-    totals = conn.execute(
-        "SELECT SUM(amount) AS total_spent, COUNT(*) AS transaction_count "
-        "FROM expenses WHERE user_id = ?",
-        (user_id,),
-    ).fetchone()
+    totals_query = "SELECT SUM(amount) AS total_spent, COUNT(*) AS transaction_count FROM expenses WHERE user_id = ?"
+    top_category_query = "SELECT category FROM expenses WHERE user_id = ?"
+    params = [user_id]
+    if start_date and end_date:
+        totals_query += " AND date BETWEEN ? AND ?"
+        top_category_query += " AND date BETWEEN ? AND ?"
+        params = [user_id, start_date, end_date]
+    top_category_query += " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1"
 
-    top_category_row = conn.execute(
-        "SELECT category FROM expenses WHERE user_id = ? "
-        "GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-        (user_id,),
-    ).fetchone()
+    totals = conn.execute(totals_query, params).fetchone()
+    top_category_row = conn.execute(top_category_query, params).fetchone()
 
     conn.close()
 
@@ -52,7 +54,7 @@ def get_summary_stats(user_id):
     }
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, start_date=None, end_date=None):
     """Return a list of {"name": str, "total": float, "percent": int} for the user,
     one entry per category that has at least one expense, ordered by total descending.
     percent values are integers that sum to exactly 100 across the list (largest-
@@ -60,16 +62,17 @@ def get_category_breakdown(user_id):
     points one each to the categories with the largest fractional remainders). If the
     user has no expenses, return an empty list."""
     conn = get_db()
-    rows = conn.execute(
-        """
+    query = """
         SELECT category, SUM(amount) AS total
         FROM expenses
         WHERE user_id = ?
-        GROUP BY category
-        ORDER BY total DESC
-        """,
-        (user_id,),
-    ).fetchall()
+    """
+    params = [user_id]
+    if start_date and end_date:
+        query += " AND date BETWEEN ? AND ?"
+        params += [start_date, end_date]
+    query += " GROUP BY category ORDER BY total DESC"
+    rows = conn.execute(query, params).fetchall()
     conn.close()
 
     if not rows:
