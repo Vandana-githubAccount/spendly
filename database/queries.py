@@ -5,10 +5,10 @@ from database.db import get_db
 
 def get_recent_transactions(user_id, start_date=None, end_date=None, limit=10):
     """Return the user's most recent expenses, newest-first, as a list of
-    sqlite3.Row (each with date, description, category, amount)."""
+    sqlite3.Row (each with id, date, description, category, amount)."""
     conn = get_db()
     query = """
-        SELECT date, description, category, amount
+        SELECT id, date, description, category, amount
         FROM expenses
         WHERE user_id = ?
     """

@@ -3,10 +3,19 @@ import math
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, get_user_by_email, get_user_by_id, init_db, seed_db
+from database.db import (
+    create_expense,
+    create_user,
+    get_expense_by_id,
+    get_user_by_email,
+    get_user_by_id,
+    init_db,
+    seed_db,
+    update_expense,
+)
 from database.queries import (
     get_category_breakdown,
     get_recent_transactions,
@@ -226,13 +235,64 @@ def add_expense():
         return render_add_expense_form("Please enter a valid date.", amount_input, category, date_input, description)
 
     create_expense(session["user_id"], amount, category, date_input, description)
+    flash("Expense added.", "success")
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/edit")
+def render_edit_expense_form(expense_id, error, amount, category, date_input, description):
+    return render_template(
+        "edit_expense.html",
+        expense_id=expense_id,
+        categories=VALID_CATEGORIES,
+        error=error,
+        amount=amount,
+        category=category,
+        date=date_input,
+        description=description,
+    )
+
+
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    expense = get_expense_by_id(id, session["user_id"])
+    if expense is None:
+        abort(404)
+
+    if request.method == "GET":
+        return render_template(
+            "edit_expense.html",
+            expense_id=expense["id"],
+            categories=VALID_CATEGORIES,
+            amount=expense["amount"],
+            category=expense["category"],
+            date=expense["date"],
+            description=expense["description"],
+        )
+
+    amount_input = request.form.get("amount", "").strip()
+    category = request.form.get("category", "")
+    date_input = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()[:500]
+
+    try:
+        amount = float(amount_input)
+    except ValueError:
+        return render_edit_expense_form(expense["id"], "Please enter a valid amount.", amount_input, category, date_input, description)
+    if amount <= 0 or not math.isfinite(amount):
+        return render_edit_expense_form(expense["id"], "Amount must be greater than zero.", amount_input, category, date_input, description)
+
+    if category not in VALID_CATEGORIES:
+        return render_edit_expense_form(expense["id"], "Please choose a valid category.", amount_input, category, date_input, description)
+
+    try:
+        datetime.strptime(date_input, DATE_FORMAT)
+    except ValueError:
+        return render_edit_expense_form(expense["id"], "Please enter a valid date.", amount_input, category, date_input, description)
+
+    update_expense(expense["id"], session["user_id"], amount, category, date_input, description)
+    flash("Expense updated.", "success")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
