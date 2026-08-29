@@ -175,6 +175,12 @@ def profile():
     )
 
 
+@app.route("/analytics")
+@login_required
+def analytics():
+    return render_template("analytics.html")
+
+
 @app.route("/expenses/add")
 @login_required
 def add_expense():
