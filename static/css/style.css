@@ -617,6 +617,10 @@ a { color: inherit; text-decoration: none; }
     gap: 1.5rem;
 }
 
+.profile-inner > .btn-primary {
+    align-self: flex-start;
+}
+
 .profile-avatar {
     width: 72px;
     height: 72px;

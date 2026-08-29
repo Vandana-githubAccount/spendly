@@ -1,11 +1,12 @@
 import functools
+import math
 import sqlite3
 from datetime import date, datetime, timedelta
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_user, get_user_by_email, get_user_by_id, init_db, seed_db
+from database.db import create_expense, create_user, get_user_by_email, get_user_by_id, init_db, seed_db
 from database.queries import (
     get_category_breakdown,
     get_recent_transactions,
@@ -38,6 +39,7 @@ def login_required(view_func):
 
 VALID_RANGES = {"all", "7d", "30d", "month", "custom"}
 DATE_FORMAT = "%Y-%m-%d"
+VALID_CATEGORIES = ["Food", "Transport", "Bills", "Health", "Entertainment", "Shopping", "Other"]
 
 
 def resolve_date_range(range_value, start_value, end_value):
@@ -181,10 +183,50 @@ def analytics():
     return render_template("analytics.html")
 
 
-@app.route("/expenses/add")
+def render_add_expense_form(error, amount, category, date_input, description):
+    return render_template(
+        "add_expense.html",
+        categories=VALID_CATEGORIES,
+        error=error,
+        amount=amount,
+        category=category,
+        date=date_input,
+        description=description,
+    )
+
+
+@app.route("/expenses/add", methods=["GET", "POST"])
 @login_required
 def add_expense():
-    return "Add expense — coming in Step 7"
+    if request.method == "GET":
+        return render_template(
+            "add_expense.html",
+            categories=VALID_CATEGORIES,
+            date=date.today().isoformat(),
+        )
+
+    amount_input = request.form.get("amount", "").strip()
+    category = request.form.get("category", "")
+    date_input = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()[:500]
+
+    try:
+        amount = float(amount_input)
+    except ValueError:
+        return render_add_expense_form("Please enter a valid amount.", amount_input, category, date_input, description)
+    if amount <= 0 or not math.isfinite(amount):
+        return render_add_expense_form("Amount must be greater than zero.", amount_input, category, date_input, description)
+
+    if category not in VALID_CATEGORIES:
+        return render_add_expense_form("Please choose a valid category.", amount_input, category, date_input, description)
+
+    try:
+        datetime.strptime(date_input, DATE_FORMAT)
+    except ValueError:
+        return render_add_expense_form("Please enter a valid date.", amount_input, category, date_input, description)
+
+    create_expense(session["user_id"], amount, category, date_input, description)
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")
